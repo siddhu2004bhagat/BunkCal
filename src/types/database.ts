@@ -14,7 +14,6 @@ export interface Database {
           branch: string | null
           college: string | null
           attendance_goal: number
-          friend_code: string | null
           created_at: string
           updated_at: string
         }
@@ -28,7 +27,6 @@ export interface Database {
           branch?: string | null
           college?: string | null
           attendance_goal?: number
-          friend_code?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -40,7 +38,6 @@ export interface Database {
           branch?: string | null
           college?: string | null
           attendance_goal?: number
-          friend_code?: string | null
           updated_at?: string
         }
       }
@@ -115,8 +112,6 @@ export interface Database {
           user_id: string
           contact_name: string
           contact_email: string | null
-          friend_user_id: string | null
-          friend_code: string | null
           balance: number
           created_at: string
           updated_at: string
@@ -126,8 +121,6 @@ export interface Database {
           user_id: string
           contact_name: string
           contact_email?: string | null
-          friend_user_id?: string | null
-          friend_code?: string | null
           balance?: number
           created_at?: string
           updated_at?: string
@@ -135,7 +128,6 @@ export interface Database {
         Update: {
           contact_name?: string
           contact_email?: string | null
-          friend_user_id?: string | null
           balance?: number
           updated_at?: string
         }

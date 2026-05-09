@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function Header({ title, showBack }: Props) {
-  const { profile, signOut } = useAuthStore()
+  const { profile, reset: signOut } = useAuthStore()
   const { addToast } = useUIStore()
   const navigate = useNavigate()
 

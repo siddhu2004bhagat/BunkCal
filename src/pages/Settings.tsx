@@ -33,7 +33,7 @@ function Toggle({ checked, onChange }: ToggleProps) {
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { signOut } = useAuthStore()
+  const { reset: signOut } = useAuthStore()
   const { addToast } = useUIStore()
   const [notifications, setNotifications] = useState(true)
   const [emailNotifs, setEmailNotifs] = useState(false)
