@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   branch TEXT,
   college TEXT,
   attendance_goal INTEGER DEFAULT 75 CHECK (attendance_goal >= 50 AND attendance_goal <= 100),
+  friend_code TEXT UNIQUE,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -62,6 +63,8 @@ CREATE TABLE IF NOT EXISTS proxy_ledger (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   contact_name TEXT NOT NULL,
   contact_email TEXT,
+  friend_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  friend_code TEXT,
   balance INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
@@ -142,6 +145,8 @@ CREATE TABLE IF NOT EXISTS calculator_history (
 -- INDEXES
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_subjects_user_id ON subjects(user_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_friend_code ON profiles(friend_code);
+CREATE INDEX IF NOT EXISTS idx_proxy_ledger_friend_user_id ON proxy_ledger(friend_user_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_records_user_id ON attendance_records(user_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_records_subject_id ON attendance_records(subject_id);
 CREATE INDEX IF NOT EXISTS idx_proxy_ledger_user_id ON proxy_ledger(user_id);
@@ -279,13 +284,25 @@ CREATE POLICY "Users can insert own history" ON calculator_history
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  new_friend_code TEXT;
+  code_exists BOOLEAN;
 BEGIN
-  INSERT INTO public.profiles (user_id, email, full_name, attendance_goal)
+  -- Generate a unique friend code
+  LOOP
+    new_friend_code := 'BW-' || substring(md5(random()::text) from 1 for 5);
+    new_friend_code := upper(new_friend_code);
+    SELECT EXISTS(SELECT 1 FROM public.profiles WHERE friend_code = new_friend_code) INTO code_exists;
+    EXIT WHEN NOT code_exists;
+  END LOOP;
+
+  INSERT INTO public.profiles (user_id, email, full_name, attendance_goal, friend_code)
   VALUES (
     NEW.id,
     NEW.email,
     NEW.raw_user_meta_data->>'full_name',
-    75
+    75,
+    new_friend_code
   )
   ON CONFLICT (user_id) DO NOTHING;
 
