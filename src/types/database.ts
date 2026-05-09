@@ -14,6 +14,7 @@ export interface Database {
           branch: string | null
           college: string | null
           attendance_goal: number
+          bunkwise_id: string | null
           created_at: string
           updated_at: string
         }
@@ -27,6 +28,7 @@ export interface Database {
           branch?: string | null
           college?: string | null
           attendance_goal?: number
+          bunkwise_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -38,6 +40,7 @@ export interface Database {
           branch?: string | null
           college?: string | null
           attendance_goal?: number
+          bunkwise_id?: string | null
           updated_at?: string
         }
       }

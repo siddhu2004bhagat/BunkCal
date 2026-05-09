@@ -11,20 +11,17 @@ async function loadProfile(userId: string, email: string, fullName?: string) {
     }
     return profile
   } catch (e) {
-    console.warn('Profile load failed (non-fatal):', e)
-    return null
+    console.warn('[Auth] Profile load failed (non-fatal):', e)
+    return null  // null means "failed to fetch" — don't wipe existing profile
   }
 }
 
 export function useAuthInit() {
-  const { setUser, setSession, setProfile, setLoading } = useAuthStore()
+  const { setUser, setSession, setProfile, setLoading, profile } = useAuthStore()
 
   useEffect(() => {
     let mounted = true
 
-    // onAuthStateChange fires INITIAL_SESSION immediately on mount
-    // with the persisted session from localStorage — this is the single
-    // source of truth. No need to call getSession() separately.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return
@@ -35,33 +32,41 @@ export function useAuthInit() {
           setSession(session)
           setUser(session.user)
 
-          // Load profile for all relevant events
-          if (
+          // Only fetch profile on meaningful events, not on every token refresh
+          // TOKEN_REFRESHED fires every ~60s — skip it if we already have a profile
+          const shouldFetchProfile =
             event === 'INITIAL_SESSION' ||
             event === 'SIGNED_IN' ||
-            event === 'TOKEN_REFRESHED' ||
-            event === 'USER_UPDATED'
-          ) {
-            const profile = await loadProfile(
+            event === 'USER_UPDATED' ||
+            (event === 'TOKEN_REFRESHED' && !profile)
+
+          if (shouldFetchProfile) {
+            const fetchedProfile = await loadProfile(
               session.user.id,
               session.user.email ?? '',
               session.user.user_metadata?.full_name
             )
-            if (mounted) setProfile(profile)
+            // Only update store if we got a real profile back
+            // Never set null here — keeps existing persisted profile intact
+            if (mounted && fetchedProfile) {
+              setProfile(fetchedProfile)
+            }
           }
         } else {
-          // No session — signed out or no account
-          setSession(null)
-          setUser(null)
-          setProfile(null)
+          // Explicitly signed out — clear everything
+          if (event === 'SIGNED_OUT') {
+            setSession(null)
+            setUser(null)
+            // setProfile(null) won't work due to safe setter — use reset via store
+            useAuthStore.getState().reset()
+          }
         }
 
-        // Always stop loading after first event
         if (mounted) setLoading(false)
       }
     )
 
-    // Safety net: if onAuthStateChange never fires within 4s, unblock the UI
+    // Safety net: unblock UI after 4s regardless
     const timeout = setTimeout(() => {
       if (mounted) {
         console.warn('[Auth] Timeout — forcing loading=false')
@@ -74,5 +79,5 @@ export function useAuthInit() {
       clearTimeout(timeout)
       subscription.unsubscribe()
     }
-  }, []) // empty deps — run once on mount only
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 }

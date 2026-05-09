@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { User, Mail, BookOpen, Building, GraduationCap, Edit3, X } from 'lucide-react'
+import { User, Mail, BookOpen, Building, GraduationCap, Edit3, X, Copy, Check } from 'lucide-react'
 import { useState } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageTransition } from '@/components/motion/PageTransition'
@@ -28,6 +28,15 @@ export default function Profile() {
   const { user, profile, setProfile } = useAuthStore()
   const { addToast } = useUIStore()
   const [editing, setEditing] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const copyBunkwiseId = () => {
+    if (profile?.bunkwise_id) {
+      navigator.clipboard.writeText(profile.bunkwise_id)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
@@ -103,6 +112,39 @@ export default function Profile() {
             )}
           </motion.div>
 
+          {/* Bunkwise ID Card — share with friends */}
+          {profile?.bunkwise_id && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-[#091426] rounded-2xl p-5 mb-4 relative overflow-hidden"
+            >
+              <p className="text-xs font-bold uppercase tracking-widest text-[#8590a6] mb-1">Your Bunkwise ID</p>
+              <div className="flex items-center justify-between">
+                <span className="text-3xl font-bold text-white tracking-widest font-mono">
+                  {profile.bunkwise_id}
+                </span>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={copyBunkwiseId}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    copied
+                      ? 'bg-[#85f8c4] text-[#002114]'
+                      : 'bg-[#1e293b] text-white hover:bg-[#3c475a]'
+                  }`}
+                >
+                  {copied ? <><Check size={13} /> Copied!</> : <><Copy size={13} /> Copy</>}
+                </motion.button>
+              </div>
+              <p className="text-xs text-[#8590a6] mt-2">
+                Share this ID with friends so they can add you to their proxy ledger
+              </p>
+              {/* Decorative */}
+              <div className="absolute right-[-10%] top-[-30%] w-32 h-32 bg-[#d8e3fb] opacity-5 rounded-full blur-2xl pointer-events-none" />
+            </motion.div>
+          )}
+
           {/* Form Card */}
           <Card>
             <div className="flex items-center justify-between mb-5">
@@ -177,14 +219,7 @@ export default function Profile() {
             </form>
           </Card>
 
-          {/* Debug info in dev */}
-          {import.meta.env.DEV && (
-            <div className="mt-4 p-3 bg-[#f2f4f6] rounded-xl text-xs text-[#45474c] font-mono">
-              <p>user_id: {user?.id?.slice(0, 8)}...</p>
-              <p>profile: {profile ? '✓ loaded' : '✗ missing'}</p>
-              <p>session: {user ? '✓ active' : '✗ none'}</p>
-            </div>
-          )}
+
         </div>
       </PageTransition>
     </AppShell>

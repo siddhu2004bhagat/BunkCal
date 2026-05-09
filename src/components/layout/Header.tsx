@@ -26,7 +26,7 @@ export function Header({ title, showBack }: Props) {
   }
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 md:px-8 h-16 bg-white border-b border-[#c5c6cd] ambient-shadow">
+    <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 md:px-8 h-16 bg-white border-b border-[#e6e8ea]">
       <div className="flex items-center gap-3">
         {showBack ? (
           <button
@@ -42,7 +42,7 @@ export function Header({ title, showBack }: Props) {
             <div className="w-8 h-8 bg-[#091426] rounded-lg flex items-center justify-center">
               <GraduationCap size={18} className="text-white" />
             </div>
-            <span className="font-bold text-[#091426] text-lg hidden sm:block">Bunkwise</span>
+            <span className="font-bold text-[#091426] text-lg">Bunkwise</span>
           </Link>
         )}
         {title && <h1 className="font-semibold text-[#091426] text-lg">{title}</h1>}

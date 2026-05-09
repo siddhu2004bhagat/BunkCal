@@ -247,9 +247,6 @@ export default function SubjectDetail() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <p className="text-xs text-[#75777d] mb-3">
-                    Mark once per day. Buttons disappear after submission.
-                  </p>
                   <div className="grid grid-cols-2 gap-3">
                     <motion.button
                       whileTap={{ scale: 0.96 }}

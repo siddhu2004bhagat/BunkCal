@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Calendar, Clock } from 'lucide-react'
+import { Plus, Calendar } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageTransition } from '@/components/motion/PageTransition'
 import { Card } from '@/components/ui/Card'
@@ -14,6 +14,14 @@ import { useUIStore } from '@/store/uiStore'
 import { timetableService } from '@/services/timetable'
 import { subjectsService } from '@/services/subjects'
 import { DAYS, SHORT_DAYS } from '@/utils/attendance'
+
+// Format "09:00:00" or "09:00" → "9:00 AM"
+function fmt(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const hour = h % 12 || 12
+  return `${hour}:${String(m).padStart(2, '0')} ${ampm}`
+}
 
 export default function Schedule() {
   const { user } = useAuthStore()
@@ -131,31 +139,31 @@ export default function Schedule() {
                   transition={{ delay: i * 0.06 }}
                   className="flex items-center gap-4 bg-white border border-[#c5c6cd] rounded-xl p-4 ambient-shadow"
                 >
-                  <div className="flex flex-col items-center text-xs text-[#75777d] w-14 shrink-0">
-                    <span className="font-semibold text-[#091426]">{entry.start_time}</span>
-                    <div className="w-px h-4 bg-[#c5c6cd] my-1" />
-                    <span>{entry.end_time}</span>
+                  {/* Time column */}
+                  <div className="flex flex-col items-end text-xs w-16 shrink-0">
+                    <span className="font-bold text-[#091426] text-sm">{fmt(entry.start_time)}</span>
+                    <span className="text-[#75777d] mt-0.5">{fmt(entry.end_time)}</span>
                   </div>
+
+                  {/* Color bar */}
                   <div
-                    className="w-1 h-12 rounded-full shrink-0"
-                    style={{ backgroundColor: subject?.color || '#091426' }}
+                    className="w-1 h-10 rounded-full shrink-0"
+                    style={{ backgroundColor: subject?.color || '#3b82f6' }}
                   />
+
+                  {/* Subject info */}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-[#091426] truncate">{subject?.name || 'Unknown Subject'}</p>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <span className="flex items-center gap-1 text-xs text-[#75777d]">
-                        <Clock size={11} />
-                        {entry.start_time} – {entry.end_time}
-                      </span>
-                      {entry.room && (
-                        <span className="text-xs text-[#75777d]">Room {entry.room}</span>
-                      )}
-                    </div>
+                    {entry.room && (
+                      <p className="text-xs text-[#75777d] mt-0.5">Room {entry.room}</p>
+                    )}
                   </div>
+
+                  {/* Delete */}
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => deleteMutation.mutate(entry.id)}
-                    className="p-1.5 rounded-lg text-[#75777d] hover:bg-[#ffdad6] hover:text-[#ba1a1a] transition-colors"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[#75777d] hover:bg-[#ffdad6] hover:text-[#ba1a1a] transition-colors shrink-0 text-lg leading-none"
                   >
                     ×
                   </motion.button>
