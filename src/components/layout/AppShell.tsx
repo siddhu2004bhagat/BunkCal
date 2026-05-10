@@ -22,7 +22,7 @@ export function AppShell({ children, title, showBack }: Props) {
         pl on desktop: sidebar width (240px)
       */}
       <main
-        className="md:pl-60"
+        className="md:pl-64"
         style={{
           paddingTop: 'calc(4rem + env(safe-area-inset-top, 0px))',
           paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))',
