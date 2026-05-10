@@ -32,6 +32,7 @@ export default function Friends() {
     queryKey: ['friend-requests', user?.id],
     queryFn: () => friendsService.getPendingRequests(user!.id),
     enabled: !!user?.id,
+    refetchInterval: 15000, // poll every 15s as fallback
   })
 
   const { data: sentRequests = [] } = useQuery({

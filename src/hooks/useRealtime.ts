@@ -70,6 +70,22 @@ export function useRealtime() {
           () => queryClient.invalidateQueries({ queryKey: ['timetable', userId] }))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
           () => queryClient.invalidateQueries({ queryKey: ['notifications', userId] }))
+        // Friend requests — receiver sees new requests instantly
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friend_requests', filter: `receiver_id=eq.${userId}` },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['friend-requests', userId] })
+            queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
+          })
+        // Friend requests — sender sees status updates (accepted/rejected)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'friend_requests', filter: `sender_id=eq.${userId}` },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['sent-requests', userId] })
+            queryClient.invalidateQueries({ queryKey: ['friends', userId] })
+            queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
+          })
+        // Friends table — both sides update when friendship is created
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'friends', filter: `user_id=eq.${userId}` },
+          () => queryClient.invalidateQueries({ queryKey: ['friends', userId] }))
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `user_id=eq.${userId}` },
           (payload) => {
             if (payload.new) {
