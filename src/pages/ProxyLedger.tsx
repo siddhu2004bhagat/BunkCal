@@ -75,6 +75,7 @@ export default function ProxyLedger() {
     mutationFn: () => proxyService.addContact(user!.id, contactName, contactEmail || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proxy-ledger'] })
+      queryClient.refetchQueries({ queryKey: ['proxy-ledger', user?.id] })
       addToast({ type: 'success', message: 'Contact added' })
       setAddContactOpen(false)
       setContactName(''); setContactEmail('')
@@ -88,6 +89,8 @@ export default function ProxyLedger() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proxy-ledger'] })
       queryClient.invalidateQueries({ queryKey: ['proxy-transactions'] })
+      queryClient.refetchQueries({ queryKey: ['proxy-ledger', user?.id] })
+      queryClient.refetchQueries({ queryKey: ['proxy-transactions', user?.id] })
       addToast({ type: 'success', message: 'Transaction recorded' })
       setTxnModal(null); setTxnClasses(1); setTxnSubject('')
     },

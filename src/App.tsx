@@ -43,10 +43,15 @@ function PageLoader() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 10,   // 10 min — subjects/profiles rarely change
-      gcTime: 1000 * 60 * 30,      // keep in cache 30 min
+      staleTime: 0,                    // always consider data stale → refetch when needed
+      gcTime: 1000 * 60 * 5,          // keep in cache 5 min
       retry: 1,
-      refetchOnWindowFocus: false,  // don't refetch on tab switch
+      refetchOnWindowFocus: true,      // refetch when user switches back to tab
+      refetchOnReconnect: true,        // refetch when network comes back
+      refetchOnMount: true,            // always refetch when component mounts
+    },
+    mutations: {
+      retry: 0,
     },
   },
 })

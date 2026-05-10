@@ -27,11 +27,25 @@ export default function Subjects() {
 
   const deleteMutation = useMutation({
     mutationFn: subjectsService.deleteSubject,
+    // Optimistic: remove from cache immediately
+    onMutate: async (subjectId) => {
+      await queryClient.cancelQueries({ queryKey: ['subjects', user?.id] })
+      const prev = queryClient.getQueryData(['subjects', user?.id])
+      queryClient.setQueryData(['subjects', user?.id], (old: typeof subjects) =>
+        old.filter(s => s.id !== subjectId)
+      )
+      return { prev }
+    },
+    onError: (_, __, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['subjects', user?.id], ctx.prev)
+      addToast({ type: 'error', message: 'Failed to delete subject' })
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subjects'] })
       addToast({ type: 'success', message: 'Subject deleted' })
     },
-    onError: () => addToast({ type: 'error', message: 'Failed to delete subject' }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['subjects', user?.id] })
+    },
   })
 
   return (

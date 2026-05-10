@@ -55,7 +55,9 @@ export default function AddSubject() {
         notes: data.notes || null,
       }),
     onSuccess: () => {
+      // Immediately refetch so dashboard shows new subject right away
       queryClient.invalidateQueries({ queryKey: ['subjects'] })
+      queryClient.refetchQueries({ queryKey: ['subjects', user?.id] })
       addToast({ type: 'success', message: 'Subject added successfully' })
       navigate('/subjects')
     },
