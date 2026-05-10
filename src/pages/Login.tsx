@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { GraduationCap, Mail, Lock } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { authService } from '@/services/auth'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
@@ -18,12 +18,24 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
+// Google SVG icon
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+    </svg>
+  )
+}
+
 export default function Login() {
   const navigate = useNavigate()
   const { addToast } = useUIStore()
   const { user, loading } = useAuthStore()
+  const [googleLoading, setGoogleLoading] = useState(false)
 
-  // Already authenticated → redirect
   useEffect(() => {
     if (!loading && user) navigate('/dashboard', { replace: true })
   }, [user, loading, navigate])
@@ -34,8 +46,6 @@ export default function Login() {
 
   const onSubmit = async (data: FormData) => {
     try {
-      // signIn triggers onAuthStateChange(SIGNED_IN) which sets user/session/profile
-      // Then the useEffect above redirects to /dashboard automatically
       await authService.signIn(data.email, data.password)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Sign in failed'
@@ -49,15 +59,28 @@ export default function Login() {
     }
   }
 
+  const handleGoogle = async () => {
+    setGoogleLoading(true)
+    try {
+      await authService.signInWithGoogle()
+      // Supabase redirects to /dashboard after OAuth
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Google sign in failed'
+      addToast({ type: 'error', message: msg })
+      setGoogleLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-dvh bg-[#f7f9fb] flex items-center justify-center p-4 overflow-y-auto">
       <div className="w-full max-w-sm py-8">
         <FadeIn direction="up">
+          {/* Logo */}
           <div className="flex flex-col items-center mb-8">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+              transition={{ duration: 0.5 }}
               className="w-16 h-16 bg-[#091426] rounded-2xl flex items-center justify-center mb-4 ambient-shadow-md"
             >
               <GraduationCap size={32} className="text-white" />
@@ -66,8 +89,33 @@ export default function Login() {
             <p className="text-sm text-[#45474c] mt-1">Track smart. Bunk smarter.</p>
           </div>
 
-          <div className="bg-white rounded-2xl ambient-shadow p-6 border border-[#c5c6cd]">
-            <h2 className="text-lg font-semibold text-[#091426] mb-6">Sign in to your account</h2>
+          <div className="bg-white rounded-2xl ambient-shadow p-6 border border-[#e6e8ea]">
+            <h2 className="text-lg font-semibold text-[#091426] mb-5">Sign in to your account</h2>
+
+            {/* Google Sign In */}
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={handleGoogle}
+              disabled={googleLoading}
+              className="w-full flex items-center justify-center gap-3 border border-[#e6e8ea] rounded-xl py-3 text-sm font-semibold text-[#374151] hover:bg-[#f7f9fb] transition-colors disabled:opacity-60 mb-5"
+            >
+              {googleLoading ? (
+                <svg className="animate-spin h-4 w-4 text-[#374151]" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : <GoogleIcon />}
+              Continue with Google
+            </motion.button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 mb-5">
+              <div className="flex-1 h-px bg-[#e6e8ea]" />
+              <span className="text-xs text-[#9ca3af] font-medium">or</span>
+              <div className="flex-1 h-px bg-[#e6e8ea]" />
+            </div>
+
+            {/* Email form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <Input
                 label="Email"
@@ -85,10 +133,11 @@ export default function Login() {
                 error={errors.password?.message}
                 {...register('password')}
               />
-              <Button type="submit" loading={isSubmitting} className="w-full mt-2" size="lg">
+              <Button type="submit" loading={isSubmitting} className="w-full" size="lg">
                 Sign In
               </Button>
             </form>
+
             <div className="mt-4 text-center">
               <p className="text-sm text-[#45474c]">
                 Don't have an account?{' '}
@@ -98,6 +147,7 @@ export default function Login() {
               </p>
             </div>
           </div>
+
           <p className="text-center text-xs text-[#75777d] mt-6">
             Academic attendance management for students
           </p>
