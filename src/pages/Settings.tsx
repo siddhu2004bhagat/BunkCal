@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
-import React from 'react'
-import { LogOut, Trash2, Bell, Moon, Shield, ChevronRight } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { LogOut, Trash2, Bell, Moon, Shield, ChevronRight, BellOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageTransition } from '@/components/motion/PageTransition'
@@ -8,14 +8,9 @@ import { Card } from '@/components/ui/Card'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import { authService } from '@/services/auth'
-import { useState } from 'react'
+import { requestNotificationPermission, showNotification } from '@/hooks/usePushNotifications'
 
-interface ToggleProps {
-  checked: boolean
-  onChange: (v: boolean) => void
-}
-
-function Toggle({ checked, onChange }: ToggleProps) {
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <motion.button
       type="button"
@@ -35,9 +30,35 @@ export default function Settings() {
   const navigate = useNavigate()
   const { reset: signOut } = useAuthStore()
   const { addToast } = useUIStore()
-  const [notifications, setNotifications] = useState(true)
-  const [emailNotifs, setEmailNotifs] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
+  const [emailNotifs, setEmailNotifs] = useState(false)
+
+  // Push notification state — synced with browser permission
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushSupported] = useState('Notification' in window)
+
+  useEffect(() => {
+    if (pushSupported) {
+      setPushEnabled(Notification.permission === 'granted')
+    }
+  }, [pushSupported])
+
+  const handlePushToggle = async (enabled: boolean) => {
+    if (enabled) {
+      const granted = await requestNotificationPermission()
+      if (granted) {
+        setPushEnabled(true)
+        // Send a test notification
+        showNotification('🎉 Notifications enabled!', 'You\'ll now get attendance warnings and proxy updates.')
+        addToast({ type: 'success', message: 'Push notifications enabled' })
+      } else {
+        addToast({ type: 'warning', message: 'Permission denied. Enable in browser settings.' })
+      }
+    } else {
+      setPushEnabled(false)
+      addToast({ type: 'info', message: 'Notifications disabled. Re-enable in browser settings to turn back on.' })
+    }
+  }
 
   const handleSignOut = async () => {
     try {
@@ -60,13 +81,19 @@ export default function Settings() {
     }>
   }> = [
     {
-      title: 'Preferences',
+      title: 'Notifications',
       items: [
         {
-          icon: <Bell size={18} />,
+          icon: pushEnabled ? <Bell size={18} /> : <BellOff size={18} />,
           label: 'Push Notifications',
-          description: 'Attendance warnings and reminders',
-          control: <Toggle checked={notifications} onChange={setNotifications} />,
+          description: pushSupported
+            ? pushEnabled
+              ? 'Attendance warnings, proxy updates, reminders'
+              : 'Tap to enable attendance alerts'
+            : 'Not supported in this browser',
+          control: pushSupported
+            ? <Toggle checked={pushEnabled} onChange={handlePushToggle} />
+            : <span className="text-xs text-[#75777d]">N/A</span>,
         },
         {
           icon: <Bell size={18} />,
@@ -74,10 +101,15 @@ export default function Settings() {
           description: 'Weekly attendance summary',
           control: <Toggle checked={emailNotifs} onChange={setEmailNotifs} />,
         },
+      ],
+    },
+    {
+      title: 'Appearance',
+      items: [
         {
           icon: <Moon size={18} />,
           label: 'Dark Mode',
-          description: 'Switch to dark theme',
+          description: 'Coming soon',
           control: <Toggle checked={darkMode} onChange={setDarkMode} />,
         },
       ],
@@ -133,16 +165,13 @@ export default function Settings() {
               </Card>
             ))}
 
-            {/* Account Actions */}
+            {/* Account */}
             <Card padding="none">
               <div className="px-6 py-3 border-b border-[#f2f4f6]">
                 <p className="text-xs font-semibold uppercase tracking-wider text-[#75777d]">Account</p>
               </div>
-              <motion.button
-                whileTap={{ scale: 0.99 }}
-                onClick={handleSignOut}
-                className="w-full flex items-center gap-3 px-6 py-4 border-b border-[#f2f4f6] hover:bg-[#f7f9fb] transition-colors"
-              >
+              <motion.button whileTap={{ scale: 0.99 }} onClick={handleSignOut}
+                className="w-full flex items-center gap-3 px-6 py-4 border-b border-[#f2f4f6] hover:bg-[#f7f9fb] transition-colors">
                 <div className="w-8 h-8 rounded-lg bg-[#f2f4f6] flex items-center justify-center">
                   <LogOut size={18} className="text-[#45474c]" />
                 </div>
@@ -151,15 +180,13 @@ export default function Settings() {
                   <p className="text-xs text-[#75777d]">Sign out of your account</p>
                 </div>
               </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.99 }}
+              <motion.button whileTap={{ scale: 0.99 }}
                 onClick={() => {
-                  if (confirm('Are you sure you want to delete your account? This cannot be undone.')) {
+                  if (window.confirm('Delete your account? This cannot be undone.')) {
                     addToast({ type: 'info', message: 'Contact support to delete your account.' })
                   }
                 }}
-                className="w-full flex items-center gap-3 px-6 py-4 hover:bg-[#fff5f5] transition-colors"
-              >
+                className="w-full flex items-center gap-3 px-6 py-4 hover:bg-[#fff5f5] transition-colors">
                 <div className="w-8 h-8 rounded-lg bg-[#ffdad6] flex items-center justify-center">
                   <Trash2 size={18} className="text-[#ba1a1a]" />
                 </div>

@@ -94,7 +94,12 @@ export function useRealtime() {
       })
 
       .subscribe((status) => {
-        console.log('[Realtime]', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] Connected ✓')
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          // Realtime not enabled on this table yet — fail silently
+          console.warn('[Realtime] Not available — run enable_realtime.sql in Supabase')
+        }
       })
 
     return () => {
