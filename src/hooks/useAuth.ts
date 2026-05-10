@@ -9,6 +9,22 @@ async function loadProfile(userId: string, email: string, fullName?: string) {
     if (!profile) {
       profile = await profilesService.createProfile(userId, email, fullName)
     }
+
+    // Auto-assign bunkwise_id if missing (profiles created before the column existed)
+    if (profile && !profile.bunkwise_id) {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      const rand4 = Array.from({ length: 4 }, () =>
+        chars[Math.floor(Math.random() * chars.length)]
+      ).join('')
+      try {
+        profile = await profilesService.upsertProfile(userId, {
+          bunkwise_id: `BW-${rand4}`,
+        })
+      } catch {
+        console.warn('[Auth] Could not assign bunkwise_id')
+      }
+    }
+
     return profile
   } catch (e) {
     console.warn('[Auth] Profile load failed (non-fatal):', e)

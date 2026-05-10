@@ -26,7 +26,9 @@ export function Header({ title, showBack }: Props) {
   }
 
   return (
-    <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 md:px-8 h-16 bg-white border-b border-[#e6e8ea]">
+    <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 md:px-8 bg-white border-b border-[#e6e8ea]"
+      style={{ height: 'calc(4rem + env(safe-area-inset-top, 0px))', paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
       <div className="flex items-center gap-3">
         {showBack ? (
           <button

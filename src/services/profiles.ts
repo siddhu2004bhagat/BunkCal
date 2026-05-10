@@ -59,11 +59,17 @@ export const profilesService = {
   },
 
   async createProfile(userId: string, email: string, fullName?: string): Promise<Profile> {
+    // Generate a client-side bunkwise_id as fallback
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    const rand4 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+    const bunkwiseId = `BW-${rand4}`
+
     const payload = {
       user_id: userId,
       email,
       full_name: fullName || null,
       attendance_goal: 75,
+      bunkwise_id: bunkwiseId,
       updated_at: new Date().toISOString(),
     }
 

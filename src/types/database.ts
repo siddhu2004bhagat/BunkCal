@@ -282,3 +282,29 @@ export type TimetableEntry = Database['public']['Tables']['timetable_entries']['
 export type Notification = Database['public']['Tables']['notifications']['Row']
 export type Settings = Database['public']['Tables']['settings']['Row']
 export type CalculatorHistory = Database['public']['Tables']['calculator_history']['Row']
+
+// Friends system
+export interface FriendRequest {
+  id: string
+  sender_id: string
+  receiver_id: string
+  status: 'pending' | 'accepted' | 'rejected'
+  created_at: string
+  updated_at: string
+}
+
+export interface Friend {
+  id: string
+  user_id: string
+  friend_id: string
+  created_at: string
+}
+
+export interface FriendWithProfile {
+  friend_id: string
+  full_name: string | null
+  bunkwise_id: string | null
+  college: string | null
+  branch: string | null
+  avatar_url: string | null
+}

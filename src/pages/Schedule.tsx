@@ -44,21 +44,51 @@ export default function Schedule() {
   })
 
   const addMutation = useMutation({
-    mutationFn: () =>
-      timetableService.addEntry({
+    mutationFn: () => {
+      // ── Duplicate checks ──────────────────────────────────────────
+      const daySlots = entries.filter(e => e.day_of_week === form.day_of_week)
+
+      // 1. Same subject already exists on this day
+      const sameSubjectSameDay = daySlots.find(e => e.subject_id === form.subject_id)
+      if (sameSubjectSameDay) {
+        const subjectName = subjects.find(s => s.id === form.subject_id)?.name ?? 'This subject'
+        throw new Error(`"${subjectName}" is already scheduled on ${DAYS[form.day_of_week]}`)
+      }
+
+      // 2. Time slot overlap with any existing class on this day
+      const newStart = form.start_time
+      const newEnd = form.end_time
+      if (newEnd <= newStart) {
+        throw new Error('End time must be after start time')
+      }
+
+      const overlap = daySlots.find(e => {
+        // Overlap if: newStart < existingEnd AND newEnd > existingStart
+        return newStart < e.end_time && newEnd > e.start_time
+      })
+      if (overlap) {
+        const conflictSubject = subjects.find(s => s.id === overlap.subject_id)?.name ?? 'Another class'
+        throw new Error(`Time overlaps with "${conflictSubject}" (${fmt(overlap.start_time)} – ${fmt(overlap.end_time)})`)
+      }
+
+      return timetableService.addEntry({
         user_id: user!.id,
         subject_id: form.subject_id,
         day_of_week: form.day_of_week,
         start_time: form.start_time,
         end_time: form.end_time,
         room: form.room || null,
-      }),
+      })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timetable'] })
       addToast({ type: 'success', message: 'Class added to schedule' })
       setAddOpen(false)
     },
-    onError: () => addToast({ type: 'error', message: 'Failed to add class' }),
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Failed to add class'
+      addToast({ type: 'error', message: msg })
+    },
   })
 
   const deleteMutation = useMutation({
@@ -184,10 +214,23 @@ export default function Schedule() {
                 className="w-full border border-[#c5c6cd] rounded px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-[#091426]"
               >
                 <option value="">Select subject...</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
+                {subjects.map((s) => {
+                  const alreadyAdded = entries.some(
+                    e => e.subject_id === s.id && e.day_of_week === form.day_of_week
+                  )
+                  return (
+                    <option key={s.id} value={s.id} disabled={alreadyAdded}>
+                      {s.name}{alreadyAdded ? ' (already scheduled)' : ''}
+                    </option>
+                  )
+                })}
               </select>
+              {/* Inline warning if selected subject already on this day */}
+              {form.subject_id && entries.some(e => e.subject_id === form.subject_id && e.day_of_week === form.day_of_week) && (
+                <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+                  ⚠️ This subject is already scheduled on {DAYS[form.day_of_week]}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold tracking-wider uppercase text-[#45474c] mb-2">Day</label>

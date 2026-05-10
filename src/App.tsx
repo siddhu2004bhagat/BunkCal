@@ -20,6 +20,7 @@ const Schedule          = lazy(() => import('@/pages/Schedule'))
 const History           = lazy(() => import('@/pages/History'))
 const Notifications     = lazy(() => import('@/pages/Notifications'))
 const Profile           = lazy(() => import('@/pages/Profile'))
+const Friends           = lazy(() => import('@/pages/Friends'))
 const Settings          = lazy(() => import('@/pages/Settings'))
 
 // ─── Page loading fallback ────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ function AppRoutes() {
           <Route path="/proxy-ledger"        element={<ProtectedRoute><ProxyLedger /></ProtectedRoute>} />
           <Route path="/schedule"            element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
           <Route path="/history"             element={<ProtectedRoute><History /></ProtectedRoute>} />
+          <Route path="/friends"             element={<ProtectedRoute><Friends /></ProtectedRoute>} />
           <Route path="/notifications"       element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/profile"             element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/settings"            element={<ProtectedRoute><Settings /></ProtectedRoute>} />

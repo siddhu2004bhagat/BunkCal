@@ -2,13 +2,14 @@ import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard, BookOpen, Users, Calculator,
-  Calendar, History, Bell, User, Settings, GraduationCap, ClipboardList
+  Calendar, History, Bell, User, Settings, ClipboardList, UserPlus
 } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/subjects', icon: BookOpen, label: 'Subjects' },
   { to: '/attendance', icon: ClipboardList, label: 'Attendance' },
+  { to: '/friends', icon: UserPlus, label: 'Friends' },
   { to: '/proxy-ledger', icon: Users, label: 'Proxy Ledger' },
   { to: '/offering-calculator', icon: Calculator, label: 'Calculator' },
   { to: '/schedule', icon: Calendar, label: 'Schedule' },
@@ -22,16 +23,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-60 fixed left-0 top-16 bottom-0 bg-white border-r border-[#c5c6cd] z-40 overflow-y-auto scrollbar-hide">
       <div className="p-4 flex-1">
-        <div className="mb-4 px-3 py-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-[#091426] rounded-lg flex items-center justify-center">
-              <GraduationCap size={15} className="text-white" />
-            </div>
-            <span className="font-bold text-[#091426] text-sm">Bunkwise</span>
-          </div>
-        </div>
-
-        <nav className="space-y-0.5">
+        <nav className="space-y-0.5 mt-2">
           {navItems.map(({ to, icon: Icon, label }) => (
             <NavLink key={to} to={to}>
               {({ isActive }) => (

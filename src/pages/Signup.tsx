@@ -65,8 +65,8 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#f7f9fb] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-dvh bg-[#f7f9fb] flex items-center justify-center p-4 overflow-y-auto">
+      <div className="w-full max-w-sm py-8">
         <FadeIn direction="up">
           <div className="flex flex-col items-center mb-8">
             <motion.div
