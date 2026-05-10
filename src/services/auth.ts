@@ -18,10 +18,12 @@ export const authService = {
   },
 
   async signInWithGoogle() {
+    // Use current origin so it works on both localhost and Vercel
+    const redirectTo = `${window.location.origin}/dashboard`
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
