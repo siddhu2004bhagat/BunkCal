@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AnimatePresence } from 'framer-motion'
 import { lazy, Suspense } from 'react'
 import { useAuthInit } from '@/hooks/useAuth'
+import { useRealtime } from '@/hooks/useRealtime'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 
 // ─── Code-split every page (lazy load) ───────────────────────────────────────
@@ -43,12 +44,12 @@ function PageLoader() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 0,                    // always consider data stale → refetch when needed
-      gcTime: 1000 * 60 * 5,          // keep in cache 5 min
+      staleTime: 1000 * 30,        // 30s — show cached data instantly, Realtime handles live updates
+      gcTime: 1000 * 60 * 10,      // keep in cache 10 min
       retry: 1,
-      refetchOnWindowFocus: true,      // refetch when user switches back to tab
-      refetchOnReconnect: true,        // refetch when network comes back
-      refetchOnMount: true,            // always refetch when component mounts
+      refetchOnWindowFocus: false, // Realtime handles this — no need to refetch on focus
+      refetchOnReconnect: true,    // refetch when network comes back
+      refetchOnMount: false,       // use cache first — Realtime pushes changes
     },
     mutations: {
       retry: 0,
@@ -59,6 +60,7 @@ const queryClient = new QueryClient({
 // ─── Routes ───────────────────────────────────────────────────────────────────
 function AppRoutes() {
   useAuthInit()
+  useRealtime()  // 🔴 Live updates from Supabase
 
   return (
     <Suspense fallback={<PageLoader />}>
