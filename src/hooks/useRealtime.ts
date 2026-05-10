@@ -1,109 +1,102 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 
-/**
- * Subscribes to Supabase Realtime for the current user's tables.
- * When any row changes, the relevant React Query cache is invalidated
- * and refetched instantly — no polling needed.
- */
+// Check if Realtime is available by testing the connection once
+let realtimeAvailable: boolean | null = null
+
+async function checkRealtimeAvailable(): Promise<boolean> {
+  if (realtimeAvailable !== null) return realtimeAvailable
+  try {
+    // Quick check: try to subscribe to a test channel with a 3s timeout
+    const result = await Promise.race([
+      new Promise<boolean>((resolve) => {
+        const ch = supabase.channel('__ping__')
+        ch.subscribe((status) => {
+          supabase.removeChannel(ch)
+          resolve(status === 'SUBSCRIBED')
+        })
+      }),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000)),
+    ])
+    realtimeAvailable = result
+    return result
+  } catch {
+    realtimeAvailable = false
+    return false
+  }
+}
+
 export function useRealtime() {
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   useEffect(() => {
     if (!user?.id) return
 
     const userId = user.id
+    let mounted = true
 
-    // Single channel for all user-scoped tables
-    const channel = supabase
-      .channel(`realtime:${userId}`)
+    const setup = async () => {
+      const available = await checkRealtimeAvailable()
 
-      // Subjects
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'subjects',
-        filter: `user_id=eq.${userId}`,
-      }, () => {
-        queryClient.invalidateQueries({ queryKey: ['subjects', userId] })
-      })
+      if (!mounted) return
 
-      // Attendance records
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'attendance_records',
-        filter: `user_id=eq.${userId}`,
-      }, () => {
-        queryClient.invalidateQueries({ queryKey: ['attendance', userId] })
-      })
+      if (!available) {
+        // Realtime not available — use polling every 30s as fallback
+        console.info('[Realtime] Not available, using polling fallback')
+        const interval = setInterval(() => {
+          queryClient.invalidateQueries({ queryKey: ['subjects', userId] })
+          queryClient.invalidateQueries({ queryKey: ['attendance', userId] })
+          queryClient.invalidateQueries({ queryKey: ['proxy-ledger', userId] })
+        }, 30000)
+        return () => clearInterval(interval)
+      }
 
-      // Proxy ledger
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'proxy_ledger',
-        filter: `user_id=eq.${userId}`,
-      }, () => {
-        queryClient.invalidateQueries({ queryKey: ['proxy-ledger', userId] })
-      })
+      // Realtime is available — subscribe
+      const channel = supabase
+        .channel(`bunkwise:${userId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'subjects', filter: `user_id=eq.${userId}` },
+          () => queryClient.invalidateQueries({ queryKey: ['subjects', userId] }))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records', filter: `user_id=eq.${userId}` },
+          () => queryClient.invalidateQueries({ queryKey: ['attendance', userId] }))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'proxy_ledger', filter: `user_id=eq.${userId}` },
+          () => queryClient.invalidateQueries({ queryKey: ['proxy-ledger', userId] }))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'proxy_transactions', filter: `user_id=eq.${userId}` },
+          () => queryClient.invalidateQueries({ queryKey: ['proxy-transactions', userId] }))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'timetable_entries', filter: `user_id=eq.${userId}` },
+          () => queryClient.invalidateQueries({ queryKey: ['timetable', userId] }))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+          () => queryClient.invalidateQueries({ queryKey: ['notifications', userId] }))
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `user_id=eq.${userId}` },
+          (payload) => {
+            if (payload.new) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              useAuthStore.getState().setProfile(payload.new as any)
+            }
+          })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.info('[Realtime] ✓ Connected')
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('[Realtime] Channel error — run enable_realtime.sql in Supabase SQL Editor')
+            realtimeAvailable = false
+          }
+        })
 
-      // Proxy transactions
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'proxy_transactions',
-        filter: `user_id=eq.${userId}`,
-      }, () => {
-        queryClient.invalidateQueries({ queryKey: ['proxy-transactions', userId] })
-      })
+      channelRef.current = channel
+    }
 
-      // Timetable
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'timetable_entries',
-        filter: `user_id=eq.${userId}`,
-      }, () => {
-        queryClient.invalidateQueries({ queryKey: ['timetable', userId] })
-      })
-
-      // Notifications
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`,
-      }, () => {
-        queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
-      })
-
-      // Profile
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'profiles',
-        filter: `user_id=eq.${userId}`,
-      }, (payload) => {
-        // Update profile in auth store directly — no extra fetch needed
-        const { setProfile } = useAuthStore.getState()
-        if (payload.new) setProfile(payload.new as Parameters<typeof setProfile>[0])
-      })
-
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] Connected ✓')
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          // Realtime not enabled on this table yet — fail silently
-          console.warn('[Realtime] Not available — run enable_realtime.sql in Supabase')
-        }
-      })
+    setup()
 
     return () => {
-      supabase.removeChannel(channel)
+      mounted = false
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
     }
   }, [user?.id, queryClient])
 }
