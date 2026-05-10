@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Trash2, BookOpen } from 'lucide-react'
+import { Plus, Trash2, BookOpen, Upload } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageTransition } from '@/components/motion/PageTransition'
 import { StaggerContainer, StaggerItem } from '@/components/motion/FadeIn'
@@ -59,6 +59,9 @@ export default function Subjects() {
           <Link to="/add-subject">
             <Button icon={<Plus size={16} />}>Add Subject</Button>
           </Link>
+          <Link to="/import-timetable">
+            <Button variant="secondary" icon={<Upload size={16} />}>Import</Button>
+          </Link>
         </div>
 
         {isLoading ? (
@@ -71,8 +74,8 @@ export default function Subjects() {
             title="No subjects yet"
             description="Add your first subject to start tracking attendance."
             action={
-              <Link to="/add-subject">
-                <Button icon={<Plus size={16} />}>Add Subject</Button>
+              <Link to="/import-timetable">
+                <Button icon={<Upload size={16} />}>Import Timetable</Button>
               </Link>
             }
           />
