@@ -8,6 +8,8 @@ import subjectsRouter from './routes/subjects'
 import attendanceRouter from './routes/attendance'
 import proxyRouter from './routes/proxy'
 import profileRouter from './routes/profile'
+import pushRouter from './routes/push'
+import { startNotificationPusher } from './notificationPusher'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -40,6 +42,7 @@ app.use('/api/subjects', subjectsRouter)
 app.use('/api/attendance', attendanceRouter)
 app.use('/api/proxy', proxyRouter)
 app.use('/api/profile', profileRouter)
+app.use('/api/push', pushRouter)
 
 // 404
 app.use((_req, res) => {
@@ -54,6 +57,8 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 app.listen(PORT, () => {
   console.log(`🚀 Bunkwise API running on http://localhost:${PORT}`)
+  // Start watching notifications table and sending Web Push
+  startNotificationPusher()
 })
 
 export default app

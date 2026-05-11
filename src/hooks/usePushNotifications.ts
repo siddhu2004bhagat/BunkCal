@@ -1,32 +1,52 @@
 import { useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
+import { registerPushSubscription, isPushSupported } from '@/services/pushSubscription'
+import { supabase } from '@/lib/supabase'
 
 /**
- * Requests push notification permission and shows local notifications
- * for attendance warnings and proxy updates.
+ * On mount, if the user has already granted notification permission,
+ * register the Web Push subscription so the server can send real pushes
+ * even when the app is closed.
  */
 export function usePushNotifications() {
   const { user } = useAuthStore()
 
   useEffect(() => {
-    if (!user || !('Notification' in window)) return
+    if (!user?.id || !isPushSupported()) return
+    if (Notification.permission !== 'granted') return
 
-    // Request permission on first use (don't auto-prompt on load)
-    // Permission is requested when user enables it in Settings
-  }, [user])
+    // Get the current session token and register
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token
+      if (token) registerPushSubscription(user.id, token)
+    })
+  }, [user?.id])
 }
 
-// Request notification permission
+// ── Request permission + register Web Push ───────────────────────────────────
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!('Notification' in window)) return false
-  if (Notification.permission === 'granted') return true
   if (Notification.permission === 'denied') return false
 
-  const result = await Notification.requestPermission()
-  return result === 'granted'
+  if (Notification.permission !== 'granted') {
+    const result = await Notification.requestPermission()
+    if (result !== 'granted') return false
+  }
+
+  // Register Web Push subscription after permission granted
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  const { useAuthStore: store } = await import('@/store/authStore')
+  const userId = store.getState().user?.id
+
+  if (token && userId && isPushSupported()) {
+    await registerPushSubscription(userId, token)
+  }
+
+  return true
 }
 
-// Show a local push notification
+// ── Show a local notification (fallback when app is open) ────────────────────
 export function showNotification(title: string, body: string, options?: {
   icon?: string
   badge?: string
@@ -35,23 +55,38 @@ export function showNotification(title: string, body: string, options?: {
 }) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
 
+  // Use SW registration for better mobile support if available
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.showNotification(title, {
+        body,
+        icon: options?.icon ?? '/icons/icon-192x192.png',
+        badge: options?.badge ?? '/icons/icon-72x72.png',
+        tag: options?.tag,
+        data: options?.data ?? {},
+        // @ts-expect-error vibrate is supported on Android
+        vibrate: [200, 100, 200],
+      })
+    }).catch(() => {
+      // Fallback to basic Notification
+      new Notification(title, { body, icon: options?.icon ?? '/icons/icon-192x192.png' })
+    })
+    return
+  }
+
   const n = new Notification(title, {
     body,
     icon: options?.icon ?? '/icons/icon-192x192.png',
     badge: options?.badge ?? '/icons/icon-72x72.png',
     tag: options?.tag,
     data: options?.data,
-    // @ts-expect-error - vibrate is supported on Android
+    // @ts-expect-error vibrate is supported on Android
     vibrate: [200, 100, 200],
   })
-
-  n.onclick = () => {
-    window.focus()
-    n.close()
-  }
+  n.onclick = () => { window.focus(); n.close() }
 }
 
-// Attendance warning notification
+// ── Convenience helpers ───────────────────────────────────────────────────────
 export function notifyAttendanceWarning(subjectName: string, pct: number) {
   showNotification(
     `⚠️ Attendance Warning — ${subjectName}`,
@@ -60,27 +95,21 @@ export function notifyAttendanceWarning(subjectName: string, pct: number) {
   )
 }
 
-// Proxy notification
 export function notifyProxyReceived(fromName: string, classes: number) {
   showNotification(
-    `🤝 Proxy Received`,
+    '🤝 Proxy Received',
     `${fromName} did a proxy for you — ${classes} class${classes !== 1 ? 'es' : ''} credited.`,
     { tag: 'proxy-received' }
   )
 }
 
-// Daily attendance reminder
 export function scheduleDailyReminder() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
-
-  // Check if already reminded today
   const today = new Date().toDateString()
   const lastReminder = localStorage.getItem('bunkwise-last-reminder')
   if (lastReminder === today) return
-
   const now = new Date()
-  const reminderHour = 9 // 9 AM
-  if (now.getHours() >= reminderHour && now.getHours() < reminderHour + 1) {
+  if (now.getHours() >= 9 && now.getHours() < 10) {
     showNotification(
       '📚 Mark Your Attendance',
       "Don't forget to mark today's attendance in Bunkwise!",

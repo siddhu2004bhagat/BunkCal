@@ -14,6 +14,12 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'public',
+      filename: 'sw.js',
+      injectManifest: {
+        injectionPoint: undefined, // our SW doesn't use precache injection
+      },
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'Bunkwise',
