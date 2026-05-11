@@ -1,9 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Trim to remove accidental whitespace/newlines from Vercel env vars
-// The %0A in WebSocket URL is caused by a trailing newline in the key
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string)?.trim()
-const supabaseKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim()
+// Strip ALL whitespace, newlines, carriage returns from env vars
+// Vercel sometimes adds %0A (newline) to env var values which breaks WebSocket URLs
+function cleanEnvVar(val: string | undefined): string {
+  if (!val) return ''
+  return val.replace(/[\s\n\r\t]/g, '')
+}
+
+const supabaseUrl = cleanEnvVar(import.meta.env.VITE_SUPABASE_URL as string)
+const supabaseKey = cleanEnvVar(import.meta.env.VITE_SUPABASE_ANON_KEY as string)
 
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
