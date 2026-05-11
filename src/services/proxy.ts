@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { ProxyLedger, ProxyTransaction } from '@/types/database'
+import { showNotification } from '@/hooks/usePushNotifications'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any
@@ -176,6 +177,18 @@ export const proxyService = {
         .eq('id', mirrorLedger.id)
 
       console.info('[Proxy Mirror] ✓ Mirrored to', receiverUserId)
+
+      // Fire push notification for the receiver
+      if (Notification.permission === 'granted') {
+        const action = originalType === 'gave'
+          ? `did a proxy for you — ${classes} class${classes !== 1 ? 'es' : ''} credited`
+          : `recorded that you owe them ${classes} proxy class${classes !== 1 ? 'es' : ''}`
+        showNotification(
+          '🤝 Proxy Update — Bunkwise',
+          `${displayName} ${action}.`,
+          { tag: `proxy-mirror-${Date.now()}` }
+        )
+      }
     } catch (err) {
       // Non-fatal — the original transaction was recorded
       console.warn('[Proxy Mirror] Failed to mirror (non-fatal):', err)
