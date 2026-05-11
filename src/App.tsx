@@ -5,6 +5,7 @@ import { lazy, Suspense } from 'react'
 import { useAuthInit } from '@/hooks/useAuth'
 import { useRealtime } from '@/hooks/useRealtime'
 import { useSmartNotifications } from '@/hooks/useSmartNotifications'
+import { useNotificationWatcher } from '@/hooks/useNotificationWatcher'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { PublicRoute } from '@/components/auth/PublicRoute'
 
@@ -65,7 +66,8 @@ const queryClient = new QueryClient({
 function AppRoutes() {
   useAuthInit()
   useRealtime()
-  useSmartNotifications() // 🔔 Background AI-style smart notifications
+  useSmartNotifications()
+  useNotificationWatcher() // 🔔 Fires browser push for new DB notifications
 
   return (
     <Suspense fallback={<PageLoader />}>
