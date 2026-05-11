@@ -1,11 +1,12 @@
 import { supabase } from '@/lib/supabase'
 import type { ProxyLedger, ProxyTransaction } from '@/types/database'
-import { showNotification } from '@/hooks/usePushNotifications'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any
 
 export const proxyService = {
+  // ─── READ ────────────────────────────────────────────────────────────────
+
   async getLedger(userId: string): Promise<ProxyLedger[]> {
     const { data, error } = await db
       .from('proxy_ledger')
@@ -14,27 +15,6 @@ export const proxyService = {
       .order('updated_at', { ascending: false })
     if (error) throw error
     return data || []
-  },
-
-  async addContact(
-    userId: string,
-    contactName: string,
-    contactEmail?: string,
-    counterpartUserId?: string
-  ): Promise<ProxyLedger> {
-    const { data, error } = await db
-      .from('proxy_ledger')
-      .insert({
-        user_id: userId,
-        contact_name: contactName,
-        contact_email: contactEmail || null,
-        balance: 0,
-        counterpart_user_id: counterpartUserId || null,
-      })
-      .select()
-      .single()
-    if (error) throw error
-    return data
   },
 
   async getTransactions(userId: string, ledgerId?: string): Promise<ProxyTransaction[]> {
@@ -49,6 +29,69 @@ export const proxyService = {
     return data || []
   },
 
+  // ─── ADD CONTACT ─────────────────────────────────────────────────────────
+  //
+  // If counterpartUserId is provided (linked friend), we call the
+  // `add_proxy_contact` RPC which is SECURITY DEFINER — it creates the
+  // ledger entry for the current user AND the mirror entry on the
+  // counterpart's side in one atomic transaction, bypassing RLS.
+  //
+  // For unlinked (manual) contacts we insert directly — no cross-user write needed.
+
+  async addContact(
+    userId: string,
+    contactName: string,
+    contactEmail?: string,
+    counterpartUserId?: string
+  ): Promise<ProxyLedger> {
+    if (counterpartUserId) {
+      // Use SECURITY DEFINER RPC for 2-way linked contacts
+      const { data, error } = await db.rpc('add_proxy_contact', {
+        p_user_id: userId,
+        p_contact_name: contactName,
+        p_contact_email: contactEmail || null,
+        p_counterpart_user_id: counterpartUserId,
+      })
+      if (error) throw error
+      // RPC returns the new ledger row id; fetch the full row
+      const { data: row, error: fetchErr } = await db
+        .from('proxy_ledger')
+        .select('*')
+        .eq('id', data)
+        .single()
+      if (fetchErr) throw fetchErr
+      return row
+    }
+
+    // Unlinked manual contact — direct insert is fine (own row only)
+    const { data, error } = await db
+      .from('proxy_ledger')
+      .insert({
+        user_id: userId,
+        contact_name: contactName,
+        contact_email: contactEmail || null,
+        balance: 0,
+        counterpart_user_id: null,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  // ─── RECORD TRANSACTION ──────────────────────────────────────────────────
+  //
+  // Always goes through the `record_proxy_transaction` RPC.
+  // The RPC is SECURITY DEFINER so it can:
+  //   1. Insert the transaction for the current user
+  //   2. Update the current user's ledger balance
+  //   3. If counterpart_user_id is set on the ledger entry:
+  //      a. Find or create the mirror ledger entry on the counterpart's side
+  //      b. Insert the mirror transaction (flipped type)
+  //      c. Update the mirror ledger balance
+  //      d. Insert a notification for the counterpart
+  // All in one atomic DB call — no RLS issues.
+
   async addTransaction(
     userId: string,
     ledgerId: string,
@@ -57,154 +100,41 @@ export const proxyService = {
     subject?: string,
     notes?: string
   ): Promise<ProxyTransaction> {
-    // 1. Get the ledger entry (includes counterpart_user_id if linked)
-    const { data: ledgerEntry, error: ledgerErr } = await db
-      .from('proxy_ledger')
-      .select('balance, counterpart_user_id, contact_name')
-      .eq('id', ledgerId)
-      .single()
-    if (ledgerErr) throw ledgerErr
+    const { data, error } = await db.rpc('record_proxy_transaction', {
+      p_user_id: userId,
+      p_ledger_id: ledgerId,
+      p_type: type,
+      p_classes: classes,
+      p_subject: subject || null,
+      p_notes: notes || null,
+    })
+    if (error) throw error
 
-    const counterpartUserId: string | null = ledgerEntry?.counterpart_user_id || null
-
-    // 2. Insert the transaction for the current user
-    const { data: txn, error: txnError } = await db
+    // RPC returns the new transaction row id; fetch the full row
+    const { data: txn, error: fetchErr } = await db
       .from('proxy_transactions')
-      .insert({
-        user_id: userId,
-        ledger_id: ledgerId,
-        type,
-        classes,
-        subject: subject || null,
-        notes: notes || null,
-        counterpart_user_id: counterpartUserId,
-      })
-      .select()
+      .select('*')
+      .eq('id', data)
       .single()
-    if (txnError) throw txnError
-
-    // 3. Update current user's ledger balance
-    const delta = type === 'gave' ? classes : -classes
-    await db
-      .from('proxy_ledger')
-      .update({ balance: (ledgerEntry?.balance ?? 0) + delta, updated_at: new Date().toISOString() })
-      .eq('id', ledgerId)
-
-    // 4. ── MIRROR to counterpart ──────────────────────────────────────────────
-    if (counterpartUserId) {
-      await proxyService._mirrorTransaction(
-        userId,
-        counterpartUserId,
-        ledgerEntry?.contact_name || 'Unknown',
-        type,
-        classes,
-        subject,
-        notes
-      )
-    }
-
+    if (fetchErr) throw fetchErr
     return txn
   },
 
-  // Mirror a transaction to the other user's ledger
-  async _mirrorTransaction(
-    senderUserId: string,
-    receiverUserId: string,
-    senderName: string,
-    originalType: 'gave' | 'received',
-    classes: number,
-    subject?: string,
-    notes?: string
-  ): Promise<void> {
-    try {
-      // Mirror type is opposite: if sender "gave", receiver "received" (and vice versa)
-      const mirrorType: 'gave' | 'received' = originalType === 'gave' ? 'received' : 'gave'
-
-      // Get sender's name from profiles
-      const { data: senderProfile } = await db
-        .from('profiles')
-        .select('full_name, bunkwise_id')
-        .eq('user_id', senderUserId)
-        .maybeSingle()
-      const displayName = senderProfile?.full_name || senderProfile?.bunkwise_id || senderName
-
-      // Find or create the mirror ledger entry on receiver's side
-      let { data: mirrorLedger } = await db
-        .from('proxy_ledger')
-        .select('id, balance')
-        .eq('user_id', receiverUserId)
-        .eq('counterpart_user_id', senderUserId)
-        .maybeSingle()
-
-      if (!mirrorLedger) {
-        // Create mirror ledger entry
-        const { data: newLedger, error: createErr } = await db
-          .from('proxy_ledger')
-          .insert({
-            user_id: receiverUserId,
-            contact_name: displayName,
-            balance: 0,
-            counterpart_user_id: senderUserId,
-          })
-          .select()
-          .single()
-        if (createErr) {
-          console.warn('[Proxy Mirror] Could not create mirror ledger:', createErr)
-          return
-        }
-        mirrorLedger = newLedger
-      }
-
-      // Insert mirror transaction
-      await db.from('proxy_transactions').insert({
-        user_id: receiverUserId,
-        ledger_id: mirrorLedger.id,
-        type: mirrorType,
-        classes,
-        subject: subject || null,
-        notes: notes || null,
-        counterpart_user_id: senderUserId,
-      })
-
-      // Update mirror ledger balance
-      const mirrorDelta = mirrorType === 'gave' ? classes : -classes
-      await db
-        .from('proxy_ledger')
-        .update({
-          balance: (mirrorLedger.balance ?? 0) + mirrorDelta,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', mirrorLedger.id)
-
-      console.info('[Proxy Mirror] ✓ Mirrored to', receiverUserId)
-
-      // Fire push notification for the receiver
-      if (Notification.permission === 'granted') {
-        const action = originalType === 'gave'
-          ? `did a proxy for you — ${classes} class${classes !== 1 ? 'es' : ''} credited`
-          : `recorded that you owe them ${classes} proxy class${classes !== 1 ? 'es' : ''}`
-        showNotification(
-          '🤝 Proxy Update — Bunkwise',
-          `${displayName} ${action}.`,
-          { tag: `proxy-mirror-${Date.now()}` }
-        )
-      }
-    } catch (err) {
-      // Non-fatal — the original transaction was recorded
-      console.warn('[Proxy Mirror] Failed to mirror (non-fatal):', err)
-    }
-  },
-
-  async deleteContact(id: string): Promise<void> {
-    const { error } = await db.from('proxy_ledger').delete().eq('id', id)
-    if (error) throw error
-  },
+  // ─── LINK existing unlinked contact to a real user ───────────────────────
+  // Used when a manual contact is later matched to a Bunkwise user.
 
   async linkContactToUser(ledgerId: string, counterpartUserId: string): Promise<void> {
     const { error } = await db
       .from('proxy_ledger')
       .update({ counterpart_user_id: counterpartUserId })
       .eq('id', ledgerId)
+    if (error) throw error
+  },
+
+  // ─── DELETE ──────────────────────────────────────────────────────────────
+
+  async deleteContact(id: string): Promise<void> {
+    const { error } = await db.from('proxy_ledger').delete().eq('id', id)
     if (error) throw error
   },
 }

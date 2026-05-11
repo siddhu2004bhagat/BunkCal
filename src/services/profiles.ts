@@ -6,7 +6,7 @@ const db = supabase as any
 
 // Wrap any DB call with an 8s timeout so it never hangs forever
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function withTimeout<T extends { data: any; error: any }>(promise: Promise<T>, ms = 8000): Promise<T> {
+function withTimeout<T extends { data: any; error: any }>(promise: Promise<T>, ms = 5000): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>

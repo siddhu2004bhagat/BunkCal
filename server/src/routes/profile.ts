@@ -41,7 +41,7 @@ router.put('/', requireAuth, async (req: AuthRequest, res) => {
     if (error) throw error
     res.json(data)
   } catch (err) {
-    if (err instanceof z.ZodError) res.status(400).json({ error: err.errors })
+    if (err instanceof z.ZodError) res.status(400).json({ error: err.issues })
     else res.status(500).json({ error: 'Failed to update profile' })
   }
 })

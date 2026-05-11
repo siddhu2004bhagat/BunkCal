@@ -116,6 +116,7 @@ export interface Database {
           contact_name: string
           contact_email: string | null
           balance: number
+          counterpart_user_id: string | null
           created_at: string
           updated_at: string
         }
@@ -125,6 +126,7 @@ export interface Database {
           contact_name: string
           contact_email?: string | null
           balance?: number
+          counterpart_user_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -132,6 +134,7 @@ export interface Database {
           contact_name?: string
           contact_email?: string | null
           balance?: number
+          counterpart_user_id?: string | null
           updated_at?: string
         }
       }

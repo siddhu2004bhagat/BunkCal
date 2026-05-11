@@ -53,8 +53,7 @@ export function useAuthInit() {
           const shouldFetchProfile =
             event === 'INITIAL_SESSION' ||
             event === 'SIGNED_IN' ||
-            event === 'USER_UPDATED' ||
-            (event === 'TOKEN_REFRESHED' && !profile)
+            event === 'USER_UPDATED'
 
           if (shouldFetchProfile) {
             const fetchedProfile = await loadProfile(
@@ -82,13 +81,12 @@ export function useAuthInit() {
       }
     )
 
-    // Safety net: unblock UI after 4s regardless
+    // Safety net: unblock UI after 6s regardless
     const timeout = setTimeout(() => {
       if (mounted) {
-        console.warn('[Auth] Timeout — forcing loading=false')
         setLoading(false)
       }
-    }, 4000)
+    }, 6000)
 
     return () => {
       mounted = false

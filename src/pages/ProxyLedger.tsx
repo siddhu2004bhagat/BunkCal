@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, TrendingUp, UserPlus, ChevronRight, BadgeCheck, Search, X, Camera, Upload, Sparkles } from 'lucide-react'
+import { Plus, TrendingUp, UserPlus, ChevronRight, BadgeCheck, Search, X, Camera, Upload, Sparkles, Link2 } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageTransition } from '@/components/motion/PageTransition'
 import { StaggerContainer, StaggerItem } from '@/components/motion/FadeIn'
@@ -132,9 +132,9 @@ export default function ProxyLedger() {
     enabled: !!user?.id,
   })
 
-  // Friends not yet in proxy ledger
+  // Friends not yet in proxy ledger (check by counterpart_user_id for accuracy)
   const friendsNotInLedger = friends.filter(
-    f => !ledger.some(l => l.contact_email === f.bunkwise_id || l.contact_name === f.full_name)
+    f => !ledger.some(l => (l as any).counterpart_user_id === f.friend_id)
   )
 
   const addFriendToLedgerMutation = useMutation({
@@ -154,13 +154,22 @@ export default function ProxyLedger() {
   })
 
   const addContactMutation = useMutation({
-    mutationFn: () => proxyService.addContact(user!.id, contactName, contactEmail || undefined),
+    mutationFn: () => proxyService.addContact(
+      user!.id,
+      contactName,
+      contactEmail || undefined,
+      // If user was found via Bunkwise ID search, link them for 2-way sync
+      searchResult?.user_id || undefined
+    ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proxy-ledger'] })
       queryClient.refetchQueries({ queryKey: ['proxy-ledger', user?.id] })
-      addToast({ type: 'success', message: 'Contact added' })
+      const msg = searchResult
+        ? 'Contact added — proxy ledger is now synced 2-way!'
+        : 'Contact added'
+      addToast({ type: 'success', message: msg })
       setAddContactOpen(false)
-      setContactName(''); setContactEmail('')
+      setContactName(''); setContactEmail(''); setSearchResult(null); setSearchId('')
     },
     onError: () => addToast({ type: 'error', message: 'Failed to add contact' }),
   })
@@ -175,7 +184,7 @@ export default function ProxyLedger() {
       queryClient.invalidateQueries({ queryKey: ['proxy-transactions'] })
       queryClient.refetchQueries({ queryKey: ['proxy-ledger', user?.id] })
       queryClient.refetchQueries({ queryKey: ['proxy-transactions', user?.id] })
-      addToast({ type: 'success', message: 'Transaction recorded' })
+      addToast({ type: 'success', message: 'Transaction recorded — counterpart notified in real time' })
       resetTxnModal()
     },
     onError: () => addToast({ type: 'error', message: 'Failed to record transaction' }),
@@ -280,7 +289,14 @@ export default function ProxyLedger() {
                               {entry.contact_name[0].toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-base font-semibold text-[#091426]">{entry.contact_name}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-base font-semibold text-[#091426]">{entry.contact_name}</p>
+                                {(entry as any).counterpart_user_id && (
+                                  <span className="flex items-center gap-1 text-[10px] font-bold text-[#24a375] bg-[#f0fdf4] border border-[#85f8c4] px-1.5 py-0.5 rounded-full">
+                                    <Link2 size={9} /> Synced
+                                  </span>
+                                )}
+                              </div>
                               {entry.contact_email && (
                                 <p className="text-sm text-[#45474c]">{entry.contact_email}</p>
                               )}

@@ -48,7 +48,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     res.status(201).json(data)
   } catch (err) {
     if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors })
+      res.status(400).json({ error: err.issues })
     } else {
       res.status(500).json({ error: 'Failed to create subject' })
     }

@@ -334,7 +334,7 @@ export default function Dashboard() {
               </p>
 
               {/* Chart — single unified chart, works on all sizes */}
-              <div className="h-28">
+              <div className="h-28" style={{ minWidth: 0 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={weekTrend} barCategoryGap="20%" margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
                     <XAxis
