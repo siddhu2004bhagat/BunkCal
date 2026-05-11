@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, ClipboardList, Calendar,
   BookOpen, Calculator, UserPlus, History,
-  Bell, User, Settings, X, LogOut, GraduationCap
+  Bell, User, Settings, X, LogOut, GraduationCap, Brain
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
@@ -22,7 +22,8 @@ const moreNavGroups = [
     label: 'Academics',
     items: [
       { to: '/subjects',            icon: BookOpen,   label: 'Subjects' },
-      { to: '/offering-calculator', icon: Calculator, label: 'Calculator' },
+      { to: '/offering-calculator', icon: Calculator, label: 'Offering' },
+      { to: '/ai-prediction',       icon: Brain,      label: 'AI Advisor' },
       { to: '/history',             icon: History,    label: 'History' },
     ],
   },

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   LayoutDashboard, BookOpen, Users, Calculator,
   Calendar, History, Bell, User, Settings,
-  ClipboardList, UserPlus, GraduationCap, LogOut, ChevronRight
+  ClipboardList, UserPlus, GraduationCap, LogOut, ChevronRight, Brain, Upload
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { authService } from '@/services/auth'
@@ -29,7 +29,9 @@ const navGroups = [
   {
     label: 'Tools',
     items: [
-      { to: '/offering-calculator', icon: Calculator, label: 'Calculator' },
+      { to: '/offering-calculator', icon: Calculator, label: 'Offering Calc' },
+      { to: '/ai-prediction',       icon: Brain,      label: 'AI Advisor ✨' },
+      { to: '/import-timetable',    icon: Upload,     label: 'Import Timetable' },
       { to: '/history',             icon: History,    label: 'History' },
       { to: '/notifications',       icon: Bell,       label: 'Notifications' },
     ],

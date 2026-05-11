@@ -1,9 +1,25 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { Bell, GraduationCap } from 'lucide-react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Bell, GraduationCap, RefreshCw } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { authService } from '@/services/auth'
 import { useUIStore } from '@/store/uiStore'
+
+// Map routes to their query keys so we only refetch what's visible
+const routeQueryKeys: Record<string, string[][]> = {
+  '/dashboard':          [['subjects'], ['attendance'], ['timetable']],
+  '/subjects':           [['subjects']],
+  '/attendance':         [['attendance'], ['subjects']],
+  '/proxy-ledger':       [['proxy-ledger'], ['proxy-transactions']],
+  '/friends':            [['friends'], ['friend-requests'], ['sent-requests']],
+  '/schedule':           [['timetable'], ['subjects']],
+  '/history':            [['attendance'], ['calculator-history'], ['proxy-transactions']],
+  '/notifications':      [['notifications']],
+  '/profile':            [['profiles']],
+  '/offering-calculator':[['calculator-history'], ['proxy-ledger']],
+}
 
 interface Props {
   title?: string
@@ -14,12 +30,35 @@ export function Header({ title, showBack }: Props) {
   const { profile, reset: signOut } = useAuthStore()
   const { addToast } = useUIStore()
   const navigate = useNavigate()
+  const location = useLocation()
+  const queryClient = useQueryClient()
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    // Find query keys for current route
+    const path = location.pathname
+    const subjectMatch = path.match(/^\/subject\/(.+)$/)
+    
+    let keysToRefetch: string[][] = routeQueryKeys[path] || []
+    if (subjectMatch) {
+      keysToRefetch = [['subject', subjectMatch[1]], ['attendance'], ['subjects']]
+    }
+
+    if (keysToRefetch.length > 0) {
+      await Promise.all(keysToRefetch.map(key => queryClient.invalidateQueries({ queryKey: key })))
+    } else {
+      // Fallback: refetch everything
+      await queryClient.invalidateQueries()
+    }
+    setTimeout(() => setRefreshing(false), 600)
+  }
 
   const handleSignOut = async () => {
     try {
       await authService.signOut()
       signOut()
-      navigate('/login')
+      navigate('/login', { replace: true })
     } catch {
       addToast({ type: 'error', message: 'Failed to sign out' })
     }
@@ -51,6 +90,19 @@ export function Header({ title, showBack }: Props) {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Page refresh button */}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={handleRefresh}
+          className="p-2 rounded-full hover:bg-[#f2f4f6] transition-colors"
+          title="Refresh page"
+        >
+          <RefreshCw
+            size={17}
+            className={`text-[#9ca3af] transition-transform duration-500 ${refreshing ? 'animate-spin' : ''}`}
+          />
+        </motion.button>
+
         <Link to="/notifications">
           <motion.button
             whileTap={{ scale: 0.92 }}

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, TrendingUp, UserPlus, ChevronRight, BadgeCheck, Search, X } from 'lucide-react'
+import { Plus, TrendingUp, UserPlus, ChevronRight, BadgeCheck, Search, X, Camera, Upload, Sparkles } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageTransition } from '@/components/motion/PageTransition'
 import { StaggerContainer, StaggerItem } from '@/components/motion/FadeIn'
@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import { proxyService } from '@/services/proxy'
 import { friendsService, type FriendSearchResult } from '@/services/friends'
+import { analyzeOffering } from '@/services/gemini'
 
 // Weekly bar chart data (visual only)
 const weekBars = [40, 60, 30, 80, 95, 50, 70]
@@ -32,6 +33,59 @@ export default function ProxyLedger() {
   const [contactEmail, setContactEmail] = useState('')
   const [txnClasses, setTxnClasses] = useState(1)
   const [txnSubject, setTxnSubject] = useState('')
+
+  // Offering state — for "I did a proxy" flow
+  const [offeringText, setOfferingText] = useState('')
+  const [offeringImage, setOfferingImage] = useState<string | null>(null)
+  const [offeringImageBase64, setOfferingImageBase64] = useState<string | null>(null)
+  const [offeringMime, setOfferingMime] = useState('image/jpeg')
+  const [analyzingOffering, setAnalyzingOffering] = useState(false)
+  const [offeringValue, setOfferingValue] = useState<number | null>(null)
+  const [offeringItem, setOfferingItem] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
+
+  const handleOfferingImage = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string
+      setOfferingImage(dataUrl)
+      const base64 = dataUrl.split(',')[1]
+      setOfferingImageBase64(base64)
+      setOfferingMime(file.type || 'image/jpeg')
+      setOfferingValue(null)
+      setOfferingItem(null)
+
+      // Auto-analyze with AI
+      setAnalyzingOffering(true)
+      try {
+        const result = await analyzeOffering(base64, file.type || 'image/jpeg')
+        setOfferingValue(result.proxyValue)
+        setOfferingItem(result.item)
+        setTxnClasses(result.proxyValue)
+        setOfferingText(`Offering: ${result.item}`)
+      } catch {
+        // Demo fallback
+        setOfferingValue(2)
+        setOfferingItem('Food item')
+        setTxnClasses(2)
+      } finally {
+        setAnalyzingOffering(false)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const resetTxnModal = () => {
+    setTxnModal(null)
+    setTxnClasses(1)
+    setTxnSubject('')
+    setOfferingText('')
+    setOfferingImage(null)
+    setOfferingImageBase64(null)
+    setOfferingValue(null)
+    setOfferingItem(null)
+  }
 
   // Friend search by Bunkwise ID
   const [searchId, setSearchId] = useState('')
@@ -71,6 +125,28 @@ export default function ProxyLedger() {
     enabled: !!user?.id,
   })
 
+  // Also load friends so they can be added to proxy ledger easily
+  const { data: friends = [] } = useQuery({
+    queryKey: ['friends', user?.id],
+    queryFn: () => friendsService.getFriends(user!.id),
+    enabled: !!user?.id,
+  })
+
+  // Friends not yet in proxy ledger
+  const friendsNotInLedger = friends.filter(
+    f => !ledger.some(l => l.contact_email === f.bunkwise_id || l.contact_name === f.full_name)
+  )
+
+  const addFriendToLedgerMutation = useMutation({
+    mutationFn: (friend: typeof friends[0]) =>
+      proxyService.addContact(user!.id, friend.full_name || friend.bunkwise_id || 'Friend', friend.bunkwise_id || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proxy-ledger'] })
+      addToast({ type: 'success', message: 'Friend added to proxy ledger' })
+    },
+    onError: () => addToast({ type: 'error', message: 'Failed to add friend' }),
+  })
+
   const addContactMutation = useMutation({
     mutationFn: () => proxyService.addContact(user!.id, contactName, contactEmail || undefined),
     onSuccess: () => {
@@ -84,15 +160,17 @@ export default function ProxyLedger() {
   })
 
   const addTxnMutation = useMutation({
-    mutationFn: () =>
-      proxyService.addTransaction(user!.id, txnModal!.ledgerId, txnModal!.type, txnClasses, txnSubject || undefined),
+    mutationFn: () => {
+      const notes = offeringText || offeringItem || undefined
+      return proxyService.addTransaction(user!.id, txnModal!.ledgerId, txnModal!.type, txnClasses, txnSubject || undefined, notes)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proxy-ledger'] })
       queryClient.invalidateQueries({ queryKey: ['proxy-transactions'] })
       queryClient.refetchQueries({ queryKey: ['proxy-ledger', user?.id] })
       queryClient.refetchQueries({ queryKey: ['proxy-transactions', user?.id] })
       addToast({ type: 'success', message: 'Transaction recorded' })
-      setTxnModal(null); setTxnClasses(1); setTxnSubject('')
+      resetTxnModal()
     },
     onError: () => addToast({ type: 'error', message: 'Failed to record transaction' }),
   })
@@ -293,6 +371,38 @@ export default function ProxyLedger() {
                 <p className="text-sm text-[#45474c]">Grow your proxy network</p>
               </div>
             </motion.div>
+
+            {/* Friends not yet in ledger — quick add */}
+            {friendsNotInLedger.length > 0 && (
+              <div className="bg-white border border-[#c5c6cd] rounded-xl p-4 ambient-shadow">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#45474c] mb-3">
+                  Add from Friends ({friendsNotInLedger.length})
+                </p>
+                <div className="space-y-2">
+                  {friendsNotInLedger.map(friend => (
+                    <div key={friend.friend_id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-[#d0e1fb] flex items-center justify-center font-bold text-[#091426] text-sm">
+                          {(friend.full_name || '?')[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-[#091426]">{friend.full_name || 'Unknown'}</p>
+                          {friend.bunkwise_id && <p className="text-xs font-mono text-[#75777d]">{friend.bunkwise_id}</p>}
+                        </div>
+                      </div>
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => addFriendToLedgerMutation.mutate(friend)}
+                        disabled={addFriendToLedgerMutation.isPending}
+                        className="text-xs font-semibold bg-[#091426] text-white px-3 py-1.5 rounded-lg hover:bg-[#1e293b] transition-colors disabled:opacity-50"
+                      >
+                        + Add
+                      </motion.button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -391,10 +501,12 @@ export default function ProxyLedger() {
         {/* Transaction Modal */}
         <Modal
           open={!!txnModal?.open}
-          onClose={() => setTxnModal(null)}
+          onClose={resetTxnModal}
           title={txnModal?.type === 'gave' ? `I did a proxy for ${txnModal?.contactName}` : `${txnModal?.contactName} did a proxy for me`}
         >
           <div className="space-y-4">
+
+            {/* Number of classes */}
             <div>
               <label className="block text-xs font-semibold tracking-wider uppercase text-[#45474c] mb-2">Number of Classes</label>
               <div className="flex items-center gap-4">
@@ -410,16 +522,12 @@ export default function ProxyLedger() {
             {ledger.length > 1 && (
               <div>
                 <label className="block text-xs font-semibold tracking-wider uppercase text-[#45474c] mb-2">Contact</label>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-32 overflow-y-auto scrollbar-hide">
                   {ledger.map((l) => (
-                    <motion.div
-                      key={l.id}
-                      whileTap={{ scale: 0.98 }}
+                    <motion.div key={l.id} whileTap={{ scale: 0.98 }}
                       onClick={() => setTxnModal(prev => prev ? { ...prev, ledgerId: l.id, contactName: l.contact_name } : null)}
                       className={`flex items-center justify-between p-3 rounded-lg cursor-pointer border transition-all ${
-                        txnModal?.ledgerId === l.id
-                          ? 'bg-[#e6e8ea] border-[#091426]/20'
-                          : 'hover:bg-[#f2f4f6] border-transparent hover:border-[#c5c6cd]'
+                        txnModal?.ledgerId === l.id ? 'bg-[#e6e8ea] border-[#091426]/20' : 'hover:bg-[#f2f4f6] border-transparent hover:border-[#c5c6cd]'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -428,13 +536,7 @@ export default function ProxyLedger() {
                         </div>
                         <span className="text-sm font-medium text-[#091426]">{l.contact_name}</span>
                       </div>
-                      <AnimatePresence>
-                        {txnModal?.ledgerId === l.id && (
-                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                            <div className="w-4 h-4 rounded-full bg-[#091426]" />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      {txnModal?.ledgerId === l.id && <div className="w-4 h-4 rounded-full bg-[#091426]" />}
                     </motion.div>
                   ))}
                 </div>
@@ -442,6 +544,72 @@ export default function ProxyLedger() {
             )}
 
             <Input label="Subject (optional)" placeholder="e.g. Advanced Mathematics" value={txnSubject} onChange={(e) => setTxnSubject(e.target.value)} />
+
+            {/* ── OFFERING SECTION — only for "I did a proxy" ── */}
+            {txnModal?.type === 'gave' && (
+              <div className="border-t border-[#f2f4f6] pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles size={14} className="text-[#3b82f6]" />
+                  <label className="text-xs font-bold uppercase tracking-wider text-[#45474c]">
+                    What do you want in exchange? (optional)
+                  </label>
+                </div>
+
+                {/* Text offering */}
+                <input
+                  value={offeringText}
+                  onChange={e => setOfferingText(e.target.value)}
+                  placeholder='e.g. "A plate of Maggi" or "Treat me to chai"'
+                  className="w-full border border-[#c5c6cd] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#091426] mb-3"
+                />
+
+                {/* Image upload */}
+                {!offeringImage ? (
+                  <div className="flex gap-2">
+                    <motion.button whileTap={{ scale: 0.96 }} onClick={() => fileRef.current?.click()}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-dashed border-[#c5c6cd] rounded-xl text-xs font-semibold text-[#45474c] hover:bg-[#f7f9fb] transition-colors">
+                      <Upload size={13} /> Upload photo
+                    </motion.button>
+                    <motion.button whileTap={{ scale: 0.96 }} onClick={() => cameraRef.current?.click()}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-dashed border-[#c5c6cd] rounded-xl text-xs font-semibold text-[#45474c] hover:bg-[#f7f9fb] transition-colors">
+                      <Camera size={13} /> Take photo
+                    </motion.button>
+                  </div>
+                ) : (
+                  <div className="relative rounded-xl overflow-hidden">
+                    <img src={offeringImage} alt="offering" className="w-full h-32 object-cover rounded-xl" />
+                    {analyzingOffering && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl">
+                        <div className="flex items-center gap-2 text-white text-xs font-semibold">
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          AI analyzing...
+                        </div>
+                      </div>
+                    )}
+                    {offeringValue !== null && !analyzingOffering && (
+                      <div className="absolute bottom-2 left-2 bg-[#091426] text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
+                        <Sparkles size={11} className="text-[#85f8c4]" />
+                        {offeringItem} · {offeringValue} {offeringValue === 1 ? 'proxy' : 'proxies'}
+                      </div>
+                    )}
+                    <motion.button whileTap={{ scale: 0.9 }}
+                      onClick={() => { setOfferingImage(null); setOfferingImageBase64(null); setOfferingValue(null); setOfferingItem(null) }}
+                      className="absolute top-2 right-2 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center text-white">
+                      <X size={12} />
+                    </motion.button>
+                  </div>
+                )}
+
+                <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleOfferingImage(f) }} />
+                <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleOfferingImage(f) }} />
+              </div>
+            )}
+
             <Button className="w-full" onClick={() => addTxnMutation.mutate()} loading={addTxnMutation.isPending}>
               Record Transaction
             </Button>

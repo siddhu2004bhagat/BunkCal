@@ -5,6 +5,7 @@ import { lazy, Suspense } from 'react'
 import { useAuthInit } from '@/hooks/useAuth'
 import { useRealtime } from '@/hooks/useRealtime'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import { PublicRoute } from '@/components/auth/PublicRoute'
 
 // ─── Code-split every page (lazy load) ───────────────────────────────────────
 // Each page is its own chunk — initial bundle drops from 1.1MB to ~200KB
@@ -21,6 +22,7 @@ const Schedule          = lazy(() => import('@/pages/Schedule'))
 const History           = lazy(() => import('@/pages/History'))
 const Notifications     = lazy(() => import('@/pages/Notifications'))
 const Profile           = lazy(() => import('@/pages/Profile'))
+const AIPrediction       = lazy(() => import('@/pages/AIPrediction'))
 const ImportTimetable   = lazy(() => import('@/pages/ImportTimetable'))
 const Friends           = lazy(() => import('@/pages/Friends'))
 const Settings          = lazy(() => import('@/pages/Settings'))
@@ -67,9 +69,9 @@ function AppRoutes() {
     <Suspense fallback={<PageLoader />}>
       <AnimatePresence mode="wait">
         <Routes>
-          {/* Public */}
-          <Route path="/login"  element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          {/* Public — redirect to dashboard if already logged in */}
+          <Route path="/login"  element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
 
           {/* Protected */}
           <Route path="/dashboard"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -81,6 +83,7 @@ function AppRoutes() {
           <Route path="/proxy-ledger"        element={<ProtectedRoute><ProxyLedger /></ProtectedRoute>} />
           <Route path="/schedule"            element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
           <Route path="/history"             element={<ProtectedRoute><History /></ProtectedRoute>} />
+          <Route path="/ai-prediction"          element={<ProtectedRoute><AIPrediction /></ProtectedRoute>} />
           <Route path="/import-timetable"     element={<ProtectedRoute><ImportTimetable /></ProtectedRoute>} />
           <Route path="/friends"             element={<ProtectedRoute><Friends /></ProtectedRoute>} />
           <Route path="/notifications"       element={<ProtectedRoute><Notifications /></ProtectedRoute>} />

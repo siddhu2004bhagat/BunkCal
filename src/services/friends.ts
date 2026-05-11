@@ -57,38 +57,15 @@ export const friendsService = {
   },
 
   async sendRequest(senderId: string, receiverId: string): Promise<FriendRequest> {
-    // Insert the friend request
-    const { data, error } = await db
-      .from('friend_requests')
-      .insert({ sender_id: senderId, receiver_id: receiverId, status: 'pending' })
-      .select()
-      .single()
+    // Use SECURITY DEFINER RPC so it can create cross-user notifications
+    const { data, error } = await db.rpc('send_friend_request', {
+      p_sender_id: senderId,
+      p_receiver_id: receiverId,
+    })
     if (error) throw error
 
-    // Create a notification for the receiver
-    try {
-      // Get sender's name
-      const { data: senderProfile } = await db
-        .from('profiles')
-        .select('full_name, bunkwise_id')
-        .eq('user_id', senderId)
-        .maybeSingle()
-
-      const senderName = senderProfile?.full_name || senderProfile?.bunkwise_id || 'Someone'
-
-      await db.from('notifications').insert({
-        user_id: receiverId,
-        title: 'New Friend Request',
-        message: `${senderName} sent you a friend request. Check your Friends page to accept.`,
-        type: 'info',
-        read: false,
-      })
-    } catch (notifErr) {
-      // Non-fatal — request was still sent
-      console.warn('Could not create notification:', notifErr)
-    }
-
-    return data
+    // Return a minimal FriendRequest object
+    return { id: data, sender_id: senderId, receiver_id: receiverId, status: 'pending', created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
   },
 
   async getPendingRequests(userId: string): Promise<(FriendRequest & { sender_profile: FriendSearchResult | null })[]> {
