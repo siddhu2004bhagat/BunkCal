@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import React, { useState, useEffect } from 'react'
-import { LogOut, Trash2, Bell, Moon, Shield, ChevronRight, BellOff } from 'lucide-react'
+import { LogOut, Trash2, Bell, Moon, Shield, ChevronRight, BellOff, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageTransition } from '@/components/motion/PageTransition'
@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import { authService } from '@/services/auth'
 import { requestNotificationPermission, showNotification } from '@/hooks/usePushNotifications'
+import { triggerSmartNotifications } from '@/hooks/useSmartNotifications'
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -28,7 +29,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { reset: signOut } = useAuthStore()
+  const { reset: signOut, user } = useAuthStore()
   const { addToast } = useUIStore()
   const [darkMode, setDarkMode] = useState(false)
   const [emailNotifs, setEmailNotifs] = useState(false)
@@ -94,6 +95,24 @@ export default function Settings() {
           control: pushSupported
             ? <Toggle checked={pushEnabled} onChange={handlePushToggle} />
             : <span className="text-xs text-[#75777d]">N/A</span>,
+        },
+        {
+          icon: <Zap size={18} />,
+          label: 'Smart Alerts',
+          description: pushEnabled ? 'Tap to send attendance & proxy alerts now' : 'Enable notifications first',
+          control: (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={async () => {
+                if (!pushEnabled) { addToast({ type: 'warning', message: 'Enable notifications first' }); return }
+                const sent = await triggerSmartNotifications(user!.id)
+                if (sent) addToast({ type: 'success', message: 'Smart alerts sent!' })
+              }}
+              className="text-xs font-semibold bg-[#091426] text-white px-3 py-1.5 rounded-lg hover:bg-[#1e293b] transition-colors disabled:opacity-50"
+            >
+              Send Now
+            </motion.button>
+          ),
         },
         {
           icon: <Bell size={18} />,

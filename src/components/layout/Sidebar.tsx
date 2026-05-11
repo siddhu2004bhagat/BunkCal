@@ -30,7 +30,6 @@ const navGroups = [
     label: 'Tools',
     items: [
       { to: '/offering-calculator', icon: Calculator, label: 'Offering Calc' },
-      { to: '/ai-prediction',       icon: Brain,      label: 'AI Advisor ✨' },
       { to: '/import-timetable',    icon: Upload,     label: 'Import Timetable' },
       { to: '/history',             icon: History,    label: 'History' },
       { to: '/notifications',       icon: Bell,       label: 'Notifications' },

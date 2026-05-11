@@ -23,7 +23,6 @@ const moreNavGroups = [
     items: [
       { to: '/subjects',            icon: BookOpen,   label: 'Subjects' },
       { to: '/offering-calculator', icon: Calculator, label: 'Offering' },
-      { to: '/ai-prediction',       icon: Brain,      label: 'AI Advisor' },
       { to: '/history',             icon: History,    label: 'History' },
     ],
   },

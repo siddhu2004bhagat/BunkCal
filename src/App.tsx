@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion'
 import { lazy, Suspense } from 'react'
 import { useAuthInit } from '@/hooks/useAuth'
 import { useRealtime } from '@/hooks/useRealtime'
+import { useSmartNotifications } from '@/hooks/useSmartNotifications'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { PublicRoute } from '@/components/auth/PublicRoute'
 
@@ -63,7 +64,8 @@ const queryClient = new QueryClient({
 // ─── Routes ───────────────────────────────────────────────────────────────────
 function AppRoutes() {
   useAuthInit()
-  useRealtime()  // 🔴 Live updates from Supabase
+  useRealtime()
+  useSmartNotifications() // 🔔 Background AI-style smart notifications
 
   return (
     <Suspense fallback={<PageLoader />}>
