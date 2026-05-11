@@ -491,7 +491,7 @@ export default function Dashboard() {
             <motion.button
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.93 }}
-              className="w-14 h-14 bg-[#3b82f6] text-white rounded-full flex items-center justify-center ambient-shadow-lg"
+              className="w-14 h-14 bg-[#091426] text-white rounded-full flex items-center justify-center ambient-shadow-lg border border-[#1e293b]"
             >
               <Plus size={24} />
             </motion.button>

@@ -139,10 +139,16 @@ export default function ProxyLedger() {
 
   const addFriendToLedgerMutation = useMutation({
     mutationFn: (friend: typeof friends[0]) =>
-      proxyService.addContact(user!.id, friend.full_name || friend.bunkwise_id || 'Friend', friend.bunkwise_id || undefined),
+      // Pass the friend's user_id as counterpart so transactions mirror automatically
+      proxyService.addContact(
+        user!.id,
+        friend.full_name || friend.bunkwise_id || 'Friend',
+        friend.bunkwise_id || undefined,
+        friend.friend_id  // ← counterpart_user_id enables mirroring
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proxy-ledger'] })
-      addToast({ type: 'success', message: 'Friend added to proxy ledger' })
+      addToast({ type: 'success', message: 'Friend added to proxy ledger — transactions will sync automatically!' })
     },
     onError: () => addToast({ type: 'error', message: 'Failed to add friend' }),
   })
