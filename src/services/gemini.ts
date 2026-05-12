@@ -39,10 +39,10 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
   throw lastError
 }
 
-// ── Model cascade: try flash first, fall back to flash-lite ─────────────────
+// ── Model cascade: try 2.5-flash first, fall back to 2.5-flash-lite ─────────
 function getModel(preferLite = false) {
   const client = getClient()
-  const modelName = preferLite ? 'gemini-1.5-flash-8b' : 'gemini-2.0-flash'
+  const modelName = preferLite ? 'gemini-2.5-flash-lite' : 'gemini-2.5-flash'
   return client.getGenerativeModel({ model: modelName })
 }
 
