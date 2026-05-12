@@ -11,19 +11,19 @@ import { authService } from '@/services/auth'
 import { useUIStore } from '@/store/uiStore'
 
 const primaryNav = [
-  { to: '/dashboard',    icon: LayoutDashboard, label: 'Home' },
-  { to: '/proxy-ledger', icon: Users,           label: 'Proxy' },
-  { to: '/attendance',   icon: ClipboardList,   label: 'Attend' },
-  { to: '/schedule',     icon: Calendar,        label: 'Schedule' },
+  { to: '/dashboard',            icon: LayoutDashboard, label: 'Home' },
+  { to: '/proxy-ledger',         icon: Users,           label: 'Proxy' },
+  { to: '/attendance',           icon: ClipboardList,   label: 'Attend' },
+  { to: '/offering-calculator',  icon: Calculator,      label: 'Offering' },
 ]
 
 const moreNavGroups = [
   {
     label: 'Academics',
     items: [
-      { to: '/subjects',            icon: BookOpen,   label: 'Subjects' },
-      { to: '/offering-calculator', icon: Calculator, label: 'Offering' },
-      { to: '/history',             icon: History,    label: 'History' },
+      { to: '/subjects',  icon: BookOpen, label: 'Subjects' },
+      { to: '/schedule',  icon: Calendar, label: 'Schedule' },
+      { to: '/history',   icon: History,  label: 'History' },
     ],
   },
   {

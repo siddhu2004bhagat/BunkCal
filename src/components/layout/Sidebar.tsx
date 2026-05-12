@@ -13,10 +13,10 @@ const navGroups = [
   {
     label: 'Main',
     items: [
-      { to: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/attendance',  icon: ClipboardList,   label: 'Attendance' },
-      { to: '/subjects',    icon: BookOpen,         label: 'Subjects' },
-      { to: '/schedule',    icon: Calendar,         label: 'Schedule' },
+      { to: '/dashboard',            icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/attendance',           icon: ClipboardList,   label: 'Attendance' },
+      { to: '/subjects',             icon: BookOpen,        label: 'Subjects' },
+      { to: '/offering-calculator',  icon: Calculator,      label: 'Offering Calc' },
     ],
   },
   {
@@ -29,10 +29,10 @@ const navGroups = [
   {
     label: 'Tools',
     items: [
-      { to: '/offering-calculator', icon: Calculator, label: 'Offering Calc' },
-      { to: '/import-timetable',    icon: Upload,     label: 'Import Timetable' },
-      { to: '/history',             icon: History,    label: 'History' },
-      { to: '/notifications',       icon: Bell,       label: 'Notifications' },
+      { to: '/schedule',          icon: Calendar, label: 'Schedule' },
+      { to: '/import-timetable',  icon: Upload,   label: 'Import Timetable' },
+      { to: '/history',           icon: History,  label: 'History' },
+      { to: '/notifications',     icon: Bell,     label: 'Notifications' },
     ],
   },
   {
