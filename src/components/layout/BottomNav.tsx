@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, ClipboardList, Calendar,
-  BookOpen, Calculator, UserPlus, History,
+  BookOpen, Gift, UserPlus, History,
   Bell, User, Settings, X, LogOut, GraduationCap, Brain
 } from 'lucide-react'
 import { useState } from 'react'
@@ -14,7 +14,7 @@ const primaryNav = [
   { to: '/dashboard',            icon: LayoutDashboard, label: 'Home' },
   { to: '/proxy-ledger',         icon: Users,           label: 'Proxy' },
   { to: '/attendance',           icon: ClipboardList,   label: 'Attend' },
-  { to: '/offering-calculator',  icon: Calculator,      label: 'Offering' },
+  { to: '/offering-calculator',  icon: Gift,            label: 'Offering' },
 ]
 
 const moreNavGroups = [

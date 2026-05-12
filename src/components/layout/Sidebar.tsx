@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  LayoutDashboard, BookOpen, Users, Calculator,
+  LayoutDashboard, BookOpen, Users, Gift,
   Calendar, History, Bell, User, Settings,
   ClipboardList, UserPlus, GraduationCap, LogOut, ChevronRight, Brain, Upload
 } from 'lucide-react'
@@ -16,7 +16,7 @@ const navGroups = [
       { to: '/dashboard',            icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/attendance',           icon: ClipboardList,   label: 'Attendance' },
       { to: '/subjects',             icon: BookOpen,        label: 'Subjects' },
-      { to: '/offering-calculator',  icon: Calculator,      label: 'Offering Calc' },
+      { to: '/offering-calculator',  icon: Gift,      label: 'Offering Calc' },
     ],
   },
   {
